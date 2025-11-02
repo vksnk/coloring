@@ -1,5 +1,7 @@
 import json
 import pprint
+import torch
+from torch_geometric.data import Data
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -50,4 +52,6 @@ if __name__ == "__main__":
                 
                 edge1.append(nodes[node1])
                 edge2.append(nodes[node2])
+
+            
             
