@@ -1,7 +1,7 @@
 import json
 import pprint
 import torch
-from torch_geometric.data import Data
+from torch_geometric.data import Data, InMemoryDataset
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -22,6 +22,10 @@ def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
             parsed_data[json_file] = data
 
     return parsed_data
+
+class RigSetDataset(InMemoryDataset):
+    def __init__(self):
+        pass
 
 if __name__ == "__main__":
     basic_graphs = load_json_from_folder("../dataset/basic_graphs")
