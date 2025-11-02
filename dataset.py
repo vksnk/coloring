@@ -25,9 +25,9 @@ def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     basic_graphs = load_json_from_folder("../dataset/basic_graphs")
-    for file_name, dat in basic_graphs.items():
+    for file_name, json in basic_graphs.items():
         # One file can have multiple graphs.
-        for func, graph in dat.items():
+        for func, graph in json.items():
             # Make sure it has required fields.
             assert "edges" in graph
             assert "nodes" in graph
@@ -37,8 +37,8 @@ if __name__ == "__main__":
                 nodes[node] = node_index
                 node_index += 1
 
-            edge1 = []
-            edge2 = []
+            edges1 = []
+            edges2 = []
             for edge in graph["edges"]:
                 # Make sure it has required fields.
                 assert "node 1" in edge
@@ -50,8 +50,14 @@ if __name__ == "__main__":
                 assert node1 in nodes
                 assert node2 in nodes
                 
-                edge1.append(nodes[node1])
-                edge2.append(nodes[node2])
+                edges1.append(nodes[node1])
+                edges2.append(nodes[node2])
+            
+            # Initialize with zeros for now.
+            x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
+            edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
+            data = Data(x = x, edge_index = edge_index)
+            data.validate(raise_on_error = True)
+            print(data)
 
-            
-            
+
