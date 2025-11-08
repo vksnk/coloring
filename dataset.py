@@ -1,6 +1,8 @@
 import json
 import pprint
 import torch
+
+from tqdm import tqdm
 from torch_geometric.data import Data, InMemoryDataset
 from pathlib import Path
 from typing import Dict, List, Any
@@ -34,7 +36,7 @@ class RigSetDataset(InMemoryDataset):
 
 if __name__ == "__main__":
     basic_graphs = load_json_from_folder("../dataset/basic_graphs")
-    for file_name, json in basic_graphs.items():
+    for file_name, json in tqdm(basic_graphs.items(), desc = 'Processing files'):
         # One file can have multiple graphs.
         for func, graph in json.items():
             # Make sure it has required fields.
@@ -66,11 +68,13 @@ if __name__ == "__main__":
             x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
             edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
-            coloring_wg, k_wg = csp_solver.solve_graph_coloring_with_csp(
-                [edges1, edges2]
-            )
-            print(coloring_wg, k_wg)
+            if len(nodes) > 28:
+                coloring, best_k = None, None
+                # print('Skipped', len(nodes))
+            else:
+                coloring, best_k = csp_solver.solve_graph_coloring_with_csp(
+                    [edges1, edges2]
+                )
 
-            data = Data(x=x, edge_index=edge_index)
+            data = Data(x=x, edge_index=edge_index, y = coloring, yk = best_k)
             data.validate(raise_on_error=True)
-            print(data)
