@@ -36,7 +36,7 @@ class RigSetDataset(InMemoryDataset):
 
 if __name__ == "__main__":
     basic_graphs = load_json_from_folder("../dataset/basic_graphs")
-    for file_name, json in tqdm(basic_graphs.items(), desc = 'Processing files'):
+    for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
         # One file can have multiple graphs.
         for func, graph in json.items():
             # Make sure it has required fields.
@@ -69,12 +69,13 @@ if __name__ == "__main__":
             edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
             if len(nodes) > 28:
-                coloring, best_k = None, None
-                # print('Skipped', len(nodes))
+                coloring, best_k = csp_solver.solve_graph_coloring_with_heuristic(
+                    [edges1, edges2]
+                )
             else:
                 coloring, best_k = csp_solver.solve_graph_coloring_with_csp(
                     [edges1, edges2]
                 )
 
-            data = Data(x=x, edge_index=edge_index, y = coloring, yk = best_k)
+            data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
             data.validate(raise_on_error=True)
