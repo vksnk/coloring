@@ -36,10 +36,8 @@ class RigSetDataset(InMemoryDataset):
 
 
 if __name__ == "__main__":
-    # counter = 0
     basic_graphs = load_json_from_folder("../dataset/loader_test")
     for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
-        print(file_name)
         # One file can have multiple graphs.
         for func, graph in json.items():
             print(func)
@@ -86,6 +84,4 @@ if __name__ == "__main__":
             data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
             data.validate(raise_on_error=True)
 
-            # if counter == 0:
             # visualize.visualize_graph([edges1, edges2], coloring, best_k)
-            # counter += 1
