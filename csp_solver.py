@@ -17,10 +17,11 @@ def solve_graph_coloring_with_heuristic(edge_lists, strategy="DSatur"):
     )
 
     # Compute graph coloring.
-    coloring = nx.greedy_color(G, strategy=nx_strategy)
+    coloring_dict = nx.greedy_color(G, strategy=nx_strategy)
+    coloring = [coloring_dict[node_index] for node_index in range(G.number_of_nodes())]
 
     # Calculate the number of colors used.
-    num_colors = max(coloring.values()) + 1
+    num_colors = max(coloring) + 1
 
     return coloring, num_colors
 
@@ -63,7 +64,9 @@ def solve_graph_coloring_with_csp(edge_lists):
         # If the status is OPTIMAL or FEASIBLE, we found a solution.
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             # We found the first k that works, so this is the chromatic number.
-            coloring = {node: solver.Value(node_colors[node]) for node in nodes}
+            coloring = [
+                solver.Value(node_colors[node_index]) for node_index in range(num_nodes)
+            ]
             return coloring, k
 
     # Should be unreachable, because we always can find at least some solution.
