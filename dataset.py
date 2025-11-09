@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 import csp_solver
+import visualize
 
 
 def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
@@ -35,10 +36,13 @@ class RigSetDataset(InMemoryDataset):
 
 
 if __name__ == "__main__":
-    basic_graphs = load_json_from_folder("../dataset/basic_graphs")
+    # counter = 0
+    basic_graphs = load_json_from_folder("../dataset/loader_test")
     for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
+        print(file_name)
         # One file can have multiple graphs.
         for func, graph in json.items():
+            print(func)
             # Make sure it has required fields.
             assert "edges" in graph
             assert "nodes" in graph
@@ -77,5 +81,11 @@ if __name__ == "__main__":
                     [edges1, edges2]
                 )
 
+            print(coloring, best_k)
+
             data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
             data.validate(raise_on_error=True)
+
+            # if counter == 0:
+            # visualize.visualize_graph([edges1, edges2], coloring, best_k)
+            # counter += 1
