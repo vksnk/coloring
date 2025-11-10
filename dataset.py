@@ -7,7 +7,7 @@ from torch_geometric.data import Data, InMemoryDataset
 from pathlib import Path
 from typing import Dict, List, Any
 
-import csp_solver
+import reference_solver
 import visualize
 
 
@@ -31,57 +31,81 @@ def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
 
 
 class RigSetDataset(InMemoryDataset):
-    def __init__(self):
-        pass
+    def __init__(self, root, transform=None, pre_transform=None, pre_filter=None):
+        super().__init__(root, transform, pre_transform, pre_filter)
+        self.load(self.processed_paths[0])
+
+    @property
+    def processed_file_names(self):
+        return ["rig_set.pt"]
+
+    def process_folder(self, folder_name):
+        datas = []
+        basic_graphs = load_json_from_folder(folder_name)
+        for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
+            # One file can have multiple graphs.
+            for func, graph in json.items():
+                print(func)
+                # Make sure it has required fields.
+                assert "edges" in graph
+                assert "nodes" in graph
+                nodes = {}
+                node_index = 0
+                for node in graph["nodes"]:
+                    nodes[node] = node_index
+                    node_index += 1
+
+                edges1 = []
+                edges2 = []
+                for edge in graph["edges"]:
+                    # Make sure it has required fields.
+                    assert "node 1" in edge
+                    assert "node 2" in edge
+                    node1 = edge["node 1"]
+                    node2 = edge["node 2"]
+
+                    # Make sure this is something we've seen in the node list.
+                    assert node1 in nodes
+                    assert node2 in nodes
+
+                    edges1.append(nodes[node1])
+                    edges2.append(nodes[node2])
+
+                # Initialize with zeros for now.
+                x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
+                edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
+
+                if len(nodes) > 28:
+                    coloring, best_k = (
+                        reference_solver.solve_graph_coloring_with_heuristic(
+                            [edges1, edges2], len(nodes)
+                        )
+                    )
+                else:
+                    coloring, best_k = reference_solver.solve_graph_coloring_with_csp(
+                        [edges1, edges2], len(nodes)
+                    )
+
+                data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
+                data.validate(raise_on_error=True)
+
+                datas.append(data)
+                # visualize.visualize_graph([edges1, edges2], coloring, best_k)
+        return datas
+
+    def process(self):
+        # Read data into huge `Data` list.
+        data_list = self.process_folder("../dataset/basic_graphs")
+
+        if self.pre_filter is not None:
+            data_list = [data for data in data_list if self.pre_filter(data)]
+
+        if self.pre_transform is not None:
+            data_list = [self.pre_transform(data) for data in data_list]
+
+        self.save(data_list, self.processed_paths[0])
 
 
 if __name__ == "__main__":
-    basic_graphs = load_json_from_folder("../dataset/loader_test")
-    for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
-        # One file can have multiple graphs.
-        for func, graph in json.items():
-            print(func)
-            # Make sure it has required fields.
-            assert "edges" in graph
-            assert "nodes" in graph
-            nodes = {}
-            node_index = 0
-            for node in graph["nodes"]:
-                nodes[node] = node_index
-                node_index += 1
-
-            edges1 = []
-            edges2 = []
-            for edge in graph["edges"]:
-                # Make sure it has required fields.
-                assert "node 1" in edge
-                assert "node 2" in edge
-                node1 = edge["node 1"]
-                node2 = edge["node 2"]
-
-                # Make sure this is something we've seen in the node list.
-                assert node1 in nodes
-                assert node2 in nodes
-
-                edges1.append(nodes[node1])
-                edges2.append(nodes[node2])
-
-            # Initialize with zeros for now.
-            x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
-            edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
-
-            if len(nodes) > 28:
-                coloring, best_k = csp_solver.solve_graph_coloring_with_heuristic(
-                    [edges1, edges2]
-                )
-            else:
-                coloring, best_k = csp_solver.solve_graph_coloring_with_csp(
-                    [edges1, edges2]
-                )
-
-            print(coloring, best_k)
-
-            data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
-            data.validate(raise_on_error=True)
-
-            # visualize.visualize_graph([edges1, edges2], coloring, best_k)
+    dataset = RigSetDataset("data/")
+    print(dataset.len())

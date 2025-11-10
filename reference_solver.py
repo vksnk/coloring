@@ -2,7 +2,7 @@ from ortools.sat.python import cp_model
 import networkx as nx
 
 
-def solve_graph_coloring_with_heuristic(edge_lists, strategy="DSatur"):
+def solve_graph_coloring_with_heuristic(edge_lists, total_nodes, strategy="DSatur"):
     """
     Colors a large graph using heuristics.
     """
@@ -10,7 +10,6 @@ def solve_graph_coloring_with_heuristic(edge_lists, strategy="DSatur"):
     # Construct nx graph.
     G = nx.Graph()
     G.add_edges_from(zip(edge_lists[0], edge_lists[1]))
-
     # Select strategy.
     nx_strategy = (
         "saturation_largest_first" if strategy == "DSatur" else "largest_first"
@@ -18,7 +17,7 @@ def solve_graph_coloring_with_heuristic(edge_lists, strategy="DSatur"):
 
     # Compute graph coloring.
     coloring_dict = nx.greedy_color(G, strategy=nx_strategy)
-    coloring = [coloring_dict[node_index] for node_index in range(G.number_of_nodes())]
+    coloring = [coloring_dict.get(node_index, 0) for node_index in range(total_nodes)]
 
     # Calculate the number of colors used.
     num_colors = max(coloring) + 1
@@ -26,7 +25,7 @@ def solve_graph_coloring_with_heuristic(edge_lists, strategy="DSatur"):
     return coloring, num_colors
 
 
-def solve_graph_coloring_with_csp(edge_lists):
+def solve_graph_coloring_with_csp(edge_lists, total_nodes):
     """
     Finds the optimal graph coloring using CSP solver.
     """
@@ -64,9 +63,12 @@ def solve_graph_coloring_with_csp(edge_lists):
         # If the status is OPTIMAL or FEASIBLE, we found a solution.
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
             # We found the first k that works, so this is the chromatic number.
-            coloring = [
-                solver.Value(node_colors[node_index]) for node_index in range(num_nodes)
-            ]
+            coloring = []
+            for node_index in range(total_nodes):
+                if node_index in node_colors:
+                    coloring.append(solver.Value(node_colors[node_index]))
+                else:
+                    coloring.append(0)
             return coloring, k
 
     # Should be unreachable, because we always can find at least some solution.
