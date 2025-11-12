@@ -45,24 +45,21 @@ def solve_graph_coloring_with_csp(edge_lists, total_nodes):
         model = cp_model.CpModel()
 
         # Create one integer variable for each node.
-        # The domain of each variable is [0, k-1] (the k colors)
+        # The domain of each variable is [0, k-1]
         node_colors = {}
         for node in nodes:
             node_colors[node] = model.NewIntVar(0, k - 1, f"color_{node}")
 
-        # Use zip() to pair corresponding start and end nodes.
-        # For every edge (u, v), add a constraint
-        # that node_colors[u] != node_colors[v]
+        # For every edge (u, v), add a constraint that node_colors[u] != node_colors[v]
         for u, v in zip(start_nodes, end_nodes):
             model.Add(node_colors[u] != node_colors[v])
 
-        # Solve.
         solver = cp_model.CpSolver()
         status = solver.Solve(model)
 
         # If the status is OPTIMAL or FEASIBLE, we found a solution.
         if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-            # We found the first k that works, so this is the chromatic number.
+            # We found the smallest k that works, so this is the chromatic number.
             coloring = []
             for node_index in range(total_nodes):
                 if node_index in node_colors:

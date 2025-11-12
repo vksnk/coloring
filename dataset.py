@@ -75,6 +75,8 @@ class RigSetDataset(InMemoryDataset):
                 x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
                 edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
+                # If graph is too large we won't be able to find a solution in reasonable
+                # amount of time.
                 if len(nodes) > 28:
                     coloring, best_k = (
                         reference_solver.solve_graph_coloring_with_heuristic(
@@ -94,7 +96,6 @@ class RigSetDataset(InMemoryDataset):
         return datas
 
     def process(self):
-        # Read data into huge `Data` list.
         data_list = self.process_folder("../dataset/basic_graphs")
 
         if self.pre_filter is not None:
