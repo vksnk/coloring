@@ -3,11 +3,11 @@ import networkx as nx
 import numpy as np
 
 
-def visualize_graph(edge_lists, coloring, num_colors):
+def visualize_graph(edge_lists, coloring):
     # Create networkx graph.
     G = nx.Graph()
     G.add_edges_from(zip(edge_lists[0], edge_lists[1]))
-
+    num_colors = max(coloring) + 1
     # Get reasonable color pallete.
     if num_colors <= 20:
         # Use a high-quality categorical map if possible

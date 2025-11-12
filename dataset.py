@@ -92,7 +92,6 @@ class RigSetDataset(InMemoryDataset):
                 data.validate(raise_on_error=True)
 
                 datas.append(data)
-                # visualize.visualize_graph([edges1, edges2], coloring, best_k)
         return datas
 
     def process(self):
@@ -110,3 +109,7 @@ class RigSetDataset(InMemoryDataset):
 if __name__ == "__main__":
     dataset = RigSetDataset("data/")
     print(dataset.len())
+    # Visualize random graph.
+    edges = dataset[20].edge_index.tolist()
+    coloring = dataset[20].y
+    visualize.visualize_graph(edges, coloring)
