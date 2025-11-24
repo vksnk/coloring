@@ -33,11 +33,20 @@ def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
 class RigSetDataset(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None, pre_filter=None):
         super().__init__(root, transform, pre_transform, pre_filter)
+        self.train_mask = []
         self.load(self.processed_paths[0])
 
     @property
     def processed_file_names(self):
         return ["rig_set.pt"]
+
+    @property
+    def num_node_features(self):
+        return 1
+
+    @property
+    def num_classes(self):
+        return 16
 
     def process_folder(self, folder_name):
         datas = []
@@ -45,7 +54,7 @@ class RigSetDataset(InMemoryDataset):
         for file_name, json in tqdm(basic_graphs.items(), desc="Processing files"):
             # One file can have multiple graphs.
             for func, graph in json.items():
-                print(func)
+                # print(func)
                 # Make sure it has required fields.
                 assert "edges" in graph
                 assert "nodes" in graph
@@ -71,13 +80,13 @@ class RigSetDataset(InMemoryDataset):
                     edges1.append(nodes[node1])
                     edges2.append(nodes[node2])
 
-                # Initialize with zeros for now.
-                x = torch.tensor([[0]] * len(nodes), dtype=torch.float)
+                # Initialize with ones for now.
+                x = torch.tensor([[1]] * len(nodes), dtype=torch.float)
                 edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
                 # If graph is too large we won't be able to find a solution in reasonable
                 # amount of time.
-                if len(nodes) > 28:
+                if len(nodes) > 25:
                     coloring, best_k = (
                         reference_solver.solve_graph_coloring_with_heuristic(
                             [edges1, edges2], len(nodes)
@@ -95,8 +104,9 @@ class RigSetDataset(InMemoryDataset):
         return datas
 
     def process(self):
-        data_list = self.process_folder("../dataset/basic_graphs")
-
+        basic_graphs = self.process_folder("../dataset/basic_graphs")
+        codenet_graphs = self.process_folder("../dataset/codenet_graphs")
+        data_list = basic_graphs + codenet_graphs
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
 
