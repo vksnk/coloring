@@ -41,20 +41,29 @@ class GCCN(torch.nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.conv2(x, edge_index)
 
-        return F.softmax(x, dim=1)
+        return x
 
 
 def potts_loss(h, edge_index):
+    h = F.softmax(h, dim=1)
+    print(h[0:10])
     u = edge_index[0]
     v = edge_index[1]
     h_u = h[u]
     h_v = h[v]
 
-    # print(h_u[0:10])
     prod = h_u * h_v
     prod = prod.sum(dim=1)
-    # print(h_u.shape, h_v.shape, prod.shape)
+
     return torch.mean(prod)
+
+
+def entropy_loss(h):
+    p = F.softmax(h, dim=1)
+    log_p = F.log_softmax(h, dim=1)
+
+    entropy = -1 * (p * log_p).sum(dim=1)
+    return torch.mean(entropy)
 
 
 if __name__ == "__main__":
@@ -85,7 +94,7 @@ if __name__ == "__main__":
             batch = batch.to(device)
             optimizer.zero_grad()
             out = model(batch)
-            loss = potts_loss(out, batch.edge_index)
+            loss = potts_loss(out, batch.edge_index) + 0.5 * entropy_loss(out)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
