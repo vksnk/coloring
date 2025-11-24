@@ -46,7 +46,7 @@ class RigSetDataset(InMemoryDataset):
 
     @property
     def num_classes(self):
-        return 16
+        return 8
 
     def process_folder(self, folder_name):
         datas = []

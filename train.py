@@ -35,8 +35,11 @@ class GCCN(torch.nn.Module):
             dataset.num_node_features, num_hidden_features
         )
         self.conv1 = GCNConv(num_hidden_features, num_hidden_features)
+        self.layer_norm1 = torch.nn.LayerNorm(num_hidden_features)
         self.conv2 = GCNConv(num_hidden_features, num_hidden_features)
+        self.layer_norm2 = torch.nn.LayerNorm(num_hidden_features)
         self.conv3 = GCNConv(num_hidden_features, num_hidden_features)
+        self.layer_norm3 = torch.nn.LayerNorm(num_hidden_features)
         self.linear_output = torch.nn.Linear(num_hidden_features, dataset.num_classes)
 
     def forward(self, data):
@@ -49,14 +52,17 @@ class GCCN(torch.nn.Module):
         x = self.conv1(x, edge_index)
         x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = self.layer_norm1(x)
 
         x = self.conv2(x, edge_index)
         x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = self.layer_norm2(x)
 
         x = self.conv3(x, edge_index)
         x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = self.layer_norm3(x)
 
         x = self.linear_output(x)
 
@@ -104,22 +110,26 @@ if __name__ == "__main__":
 
     model = GCCN().to(device)
     # data = dataset[0].to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
     model.train()
 
-    for epoch in range(200):
+    for epoch in range(50):
         total_loss = 0.0
+        out = None
         for batch in loader:
             batch = batch.to(device)
             optimizer.zero_grad()
             out = model(batch)
-            loss = potts_loss(out, batch.edge_index) + 0.5 * entropy_loss(out)
+            loss = potts_loss(out, batch.edge_index) + 0.02 * entropy_loss(out)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
 
         avg_loss = total_loss / len(loader)
         print(f"Epoch #{epoch} loss: {avg_loss}")
+        # torch.set_printoptions(profile="full")
+        # print(F.softmax(out, dim=1)[0:25])
+        # torch.set_printoptions(profile="default")
 
     # model.eval()
     # pred = model(data).argmax(dim=1)
