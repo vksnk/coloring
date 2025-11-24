@@ -29,24 +29,43 @@ class GCN(torch.nn.Module):
 class GCCN(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = GCNConv(dataset.num_node_features, 16)
-        self.conv2 = GCNConv(16, dataset.num_classes)
+        num_hidden_features = 64
+        assert dataset.num_node_features > 0
+        self.linear_input = torch.nn.Linear(
+            dataset.num_node_features, num_hidden_features
+        )
+        self.conv1 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv2 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv3 = GCNConv(num_hidden_features, num_hidden_features)
+        self.linear_output = torch.nn.Linear(num_hidden_features, dataset.num_classes)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
-        # print(x.shape, edge_index)
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
+        x = self.linear_input(x)
         x = F.dropout(x, training=self.training)
+        x = F.relu(x)
+
+        x = self.conv1(x, edge_index)
+        x = F.dropout(x, training=self.training)
+        x = F.relu(x)
+
         x = self.conv2(x, edge_index)
+        x = F.dropout(x, training=self.training)
+        x = F.relu(x)
+
+        x = self.conv3(x, edge_index)
+        x = F.dropout(x, training=self.training)
+        x = F.relu(x)
+
+        x = self.linear_output(x)
 
         return x
 
 
 def potts_loss(h, edge_index):
     h = F.softmax(h, dim=1)
-    print(h[0:10])
+    # print(h[0:10])
     u = edge_index[0]
     v = edge_index[1]
     h_u = h[u]
