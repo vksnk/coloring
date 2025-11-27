@@ -1,6 +1,7 @@
 import json
 import pprint
 import torch
+import random
 
 from tqdm import tqdm
 from torch_geometric.data import Data, InMemoryDataset
@@ -104,16 +105,38 @@ class RigSetDataset(InMemoryDataset):
         return datas
 
     def process(self):
-        basic_graphs = self.process_folder("../dataset/basic_graphs")
-        codenet_graphs = self.process_folder("../dataset/codenet_graphs")
+        basic_graphs = self.process_folder("../coloring-dataset/basic_graphs")
+        codenet_graphs = self.process_folder("../coloring-dataset/codenet_graphs")
         data_list = basic_graphs + codenet_graphs
+
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
 
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
 
-        self.save(data_list, self.processed_paths[0])
+        # Split into training, validation and test.
+        random.shuffle(data_list)
+
+        n = len(data_list)
+        n_train = int(n * 0.8)
+        n_val = int(n * 0.1)
+
+        train_mask = torch.zeros(n, dtype=torch.bool)
+        val_mask = torch.zeros(n, dtype=torch.bool)
+        test_mask = torch.zeros(n, dtype=torch.bool)
+
+        train_mask[:n_train] = True
+        val_mask[n_train : n_train + n_val] = True
+        test_mask[n_train + n_val :] = True
+
+        data, slices = self.collate(data_list)
+
+        data.train_mask = train_mask
+        data.val_mask = val_mask
+        data.test_mask = test_mask
+
+        torch.save((data, slices), self.processed_paths[0])
 
 
 if __name__ == "__main__":

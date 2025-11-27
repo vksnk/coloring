@@ -8,6 +8,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.nn import GCNConv
 from torch_geometric.datasets import Planetoid
 
+
 class GCCN(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -76,18 +77,21 @@ def entropy_loss(h):
 if __name__ == "__main__":
     if torch.mps.is_available():
         # MPS seems to be much slower for this task.
-        print('Using cpu backend...')
+        print("Using cpu backend...")
         device = torch.device("cpu")
+        pin_memory = False
     elif torch.cuda.is_available():
-        print('Using cuda backend...')
+        print("Using cuda backend...")
         device = torch.device("cuda")
+        pin_memory = True
     else:
         print("Using cpu backend...")
         device = torch.device("cpu")
+        pin_memory = False
 
     dataset = RigSetDataset("data/")
     loader = DataLoader(
-        dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True
+        dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
     model = GCCN().to(device)
