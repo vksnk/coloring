@@ -1,5 +1,7 @@
 from dataset import RigSetDataset
 
+import os
+
 import torch
 import torch.nn.functional as F
 
@@ -74,6 +76,8 @@ def entropy_loss(h):
     return torch.mean(entropy)
 
 
+CHECKPOINT_NAME = "checkpoints/checkpoint.pth"
+
 if __name__ == "__main__":
     if torch.mps.is_available():
         # MPS seems to be much slower for this task.
@@ -97,9 +101,19 @@ if __name__ == "__main__":
 
     model = GCCN().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
+
+    if os.path.exists(CHECKPOINT_NAME):
+        checkpoint = torch.load(CHECKPOINT_NAME, weights_only=True, map_location=device)
+
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
+    else:
+        start_epoch = 0
+
     model.train()
 
-    for epoch in range(50):
+    for epoch in range(start_epoch, 50):
         total_loss = 0.0
         out = None
         for batch in loader:
@@ -113,6 +127,15 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(loader)
         print(f"Epoch #{epoch} loss: {avg_loss}")
+
+        checkpoint = {
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "loss": loss,
+        }
+        torch.save(checkpoint, CHECKPOINT_NAME)
+
         # torch.set_printoptions(profile="full")
         # print(F.softmax(out, dim=1)[0:25])
         # torch.set_printoptions(profile="default")
