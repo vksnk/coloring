@@ -90,12 +90,12 @@ if __name__ == "__main__":
         pin_memory = False
 
     dataset = RigSetDataset("data/")
+    train_dataset = dataset[dataset.train_mask]
     loader = DataLoader(
-        dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
+        train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
     model = GCCN().to(device)
-    # data = dataset[0].to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
     model.train()
 

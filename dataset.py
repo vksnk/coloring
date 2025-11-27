@@ -34,7 +34,6 @@ def load_json_from_folder(folder_path: str) -> Dict[str, Any]:
 class RigSetDataset(InMemoryDataset):
     def __init__(self, root, transform=None, pre_transform=None, pre_filter=None):
         super().__init__(root, transform, pre_transform, pre_filter)
-        self.train_mask = []
         self.load(self.processed_paths[0])
 
     @property
@@ -48,6 +47,18 @@ class RigSetDataset(InMemoryDataset):
     @property
     def num_classes(self):
         return 8
+
+    @property
+    def train_mask(self):
+        return self._data.train_mask
+
+    @property
+    def val_mask(self):
+        return self._data.val_mask
+
+    @property
+    def test_mask(self):
+        return self._data.test_mask
 
     def process_folder(self, folder_name):
         datas = []
