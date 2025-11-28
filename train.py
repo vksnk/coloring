@@ -7,47 +7,55 @@ import torch.nn.functional as F
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GCNConv
-from torch_geometric.datasets import Planetoid
+from torch_geometric.nn import GCNConv, SAGEConv
 
 
 class GCCN(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, num_node_features, num_classes):
         super().__init__()
         num_hidden_features = 64
-        assert dataset.num_node_features > 0
-        self.linear_input = torch.nn.Linear(
-            dataset.num_node_features, num_hidden_features
+        self.linear_input = torch.nn.Linear(num_node_features, num_hidden_features)
+        self.conv1 = SAGEConv(
+            num_hidden_features, num_hidden_features, root_weight=True
         )
-        self.conv1 = GCNConv(num_hidden_features, num_hidden_features)
         self.layer_norm1 = torch.nn.LayerNorm(num_hidden_features)
-        self.conv2 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv2 = SAGEConv(
+            num_hidden_features, num_hidden_features, root_weight=True
+        )
         self.layer_norm2 = torch.nn.LayerNorm(num_hidden_features)
-        self.conv3 = GCNConv(num_hidden_features, num_hidden_features)
+        self.conv3 = SAGEConv(
+            num_hidden_features, num_hidden_features, root_weight=True
+        )
         self.layer_norm3 = torch.nn.LayerNorm(num_hidden_features)
-        self.linear_output = torch.nn.Linear(num_hidden_features, dataset.num_classes)
+        self.linear_output = torch.nn.Linear(num_hidden_features, num_classes)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
         x = self.linear_input(x)
-        x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = F.dropout(x, training=self.training)
 
+        x_in = x
         x = self.conv1(x, edge_index)
-        x = F.dropout(x, training=self.training)
-        x = F.relu(x)
         x = self.layer_norm1(x)
+        x = F.relu(x)
+        x = F.dropout(x, training=self.training)
+        x = x + x_in
 
+        x_in = x
         x = self.conv2(x, edge_index)
-        x = F.dropout(x, training=self.training)
-        x = F.relu(x)
         x = self.layer_norm2(x)
-
-        x = self.conv3(x, edge_index)
-        x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = F.dropout(x, training=self.training)
+        x = x + x_in
+
+        x_in = x
+        x = self.conv3(x, edge_index)
         x = self.layer_norm3(x)
+        x = F.relu(x)
+        x = F.dropout(x, training=self.training)
+        x = x + x_in
 
         x = self.linear_output(x)
 
@@ -95,11 +103,16 @@ if __name__ == "__main__":
 
     dataset = RigSetDataset("data/")
     train_dataset = dataset[dataset.train_mask]
-    loader = DataLoader(
+    val_dataset = dataset[dataset.val_mask]
+
+    train_loader = DataLoader(
         train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
+    val_loader = DataLoader(
+        val_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
+    )
 
-    model = GCCN().to(device)
+    model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
 
     if os.path.exists(CHECKPOINT_NAME):
@@ -108,6 +121,7 @@ if __name__ == "__main__":
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
+        print(f"Loaded saved checkpoint from epoch #{start_epoch - 1}")
     else:
         start_epoch = 0
 
@@ -116,18 +130,25 @@ if __name__ == "__main__":
     for epoch in range(start_epoch, 50):
         total_loss = 0.0
         out = None
-        for batch in loader:
+        # Iterate over batches.
+        for batch in train_loader:
             batch = batch.to(device)
             optimizer.zero_grad()
             out = model(batch)
+
+            # torch.set_printoptions(profile="full")
+            # print(F.softmax(out, dim=1)[0:25])
+            # torch.set_printoptions(profile="default")
+
             loss = potts_loss(out, batch.edge_index) + 0.02 * entropy_loss(out)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
 
-        avg_loss = total_loss / len(loader)
+        avg_loss = total_loss / len(train_loader)
         print(f"Epoch #{epoch} loss: {avg_loss}")
 
+        # Save intermediate checkpoint, so we can continue training if needed.
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
@@ -140,7 +161,20 @@ if __name__ == "__main__":
         # print(F.softmax(out, dim=1)[0:25])
         # torch.set_printoptions(profile="default")
 
-    # model.eval()
+    model.eval()
+    # model.train()
+    with torch.no_grad():
+        for batch in val_loader:
+            batch = batch.to(device)
+            print(batch.x)
+            logits = model(batch)
+            print("Max Logit:", logits.max().item())
+            print("Min Logit:", logits.min().item())
+            out = F.softmax(logits, dim=1)
+            hard_colors = out.argmax(dim=1)
+            print(out)
+            print(hard_colors)
+
     # pred = model(data).argmax(dim=1)
     # correct = (pred[data.test_mask] == data.y[data.test_mask]).sum()
     # acc = int(correct) / int(data.test_mask.sum())
