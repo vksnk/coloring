@@ -88,9 +88,11 @@ def entropy_loss(h):
 def evaluate_dataset(model, loader):
     model.eval()
 
+    total_conflicts = 0
+    total_perfect_graphs = 0
+    total_graphs = 0
+    total_unsolvable = 0
     with torch.no_grad():
-        total_perfect_graphs = 0
-        total_graphs = 0
         for batch in loader:
             # Process batch, apply softmax and find the most probable color assignment.
             batch = batch.to(device)
@@ -101,6 +103,8 @@ def evaluate_dataset(model, loader):
             # Find conflicts for all edges at once.
             u, v = batch.edge_index
             conflicts = hard_colors[u] == hard_colors[v]
+
+            total_conflicts += conflicts.sum().item()
 
             # Aggregate mistakes per graph.
             edge_batch = batch.batch[batch.edge_index[0]]
@@ -114,12 +118,18 @@ def evaluate_dataset(model, loader):
             # Update totals.
             total_perfect_graphs += perfect_graphs_in_batch
             total_graphs += batch.num_graphs
+            total_unsolvable += (batch.yk > 8).sum().item()
+            # print(batch.yk)
 
             # print(f"Batch: {perfect_graphs_in_batch}/{batch.num_graphs} perfect.")
 
-        print(f"Total: {total_perfect_graphs}/{total_graphs} perfect.")
+        print(
+            f"Total: {total_perfect_graphs}/{total_graphs} perfect with {total_unsolvable} unsolvable."
+        )
 
     model.train()
+
+    return total_conflicts / total_graphs
 
 
 CHECKPOINT_NAME = "checkpoints/checkpoint.pth"
@@ -151,7 +161,10 @@ if __name__ == "__main__":
     )
 
     model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005, weight_decay=5e-4)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, mode="min", factor=0.3, patience=5, min_lr=0.00001
+    # )
 
     if os.path.exists(CHECKPOINT_NAME):
         checkpoint = torch.load(CHECKPOINT_NAME, weights_only=True, map_location=device)
@@ -165,7 +178,7 @@ if __name__ == "__main__":
 
     model.train()
 
-    for epoch in range(start_epoch, 50):
+    for epoch in range(start_epoch, 100):
         total_loss = 0.0
         out = None
         # Iterate over batches.
@@ -195,7 +208,7 @@ if __name__ == "__main__":
         }
         torch.save(checkpoint, CHECKPOINT_NAME)
 
-        evaluate_dataset(model, val_loader)
-        # torch.set_printoptions(profile="full")
-        # print(F.softmax(out, dim=1)[0:25])
-        # torch.set_printoptions(profile="default")
+        avg_conflicts = evaluate_dataset(model, val_loader)
+        # scheduler.step(avg_conflicts)
+
+        # print(f"Current LR: {optimizer.param_groups[0]['lr']} Avg conflicts: {avg_conflicts}")
