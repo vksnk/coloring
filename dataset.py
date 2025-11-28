@@ -42,11 +42,11 @@ class RigSetDataset(InMemoryDataset):
 
     @property
     def num_node_features(self):
-        return 1
+        return 16
 
     @property
     def num_classes(self):
-        return 8
+        return 16
 
     @property
     def train_mask(self):
@@ -92,8 +92,7 @@ class RigSetDataset(InMemoryDataset):
                     edges1.append(nodes[node1])
                     edges2.append(nodes[node2])
 
-                # Initialize with ones for now.
-                x = torch.tensor([[1]] * len(nodes), dtype=torch.float)
+                x = torch.randn(len(nodes), self.num_node_features)
                 edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
                 # If graph is too large we won't be able to find a solution in reasonable
