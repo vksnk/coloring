@@ -85,6 +85,43 @@ def entropy_loss(h):
     return torch.mean(entropy)
 
 
+def evaluate_dataset(model, loader):
+    model.eval()
+
+    with torch.no_grad():
+        total_perfect_graphs = 0
+        total_graphs = 0
+        for batch in loader:
+            # Process batch, apply softmax and find the most probable color assignment.
+            batch = batch.to(device)
+            logits = model(batch)
+            out = F.softmax(logits, dim=1)
+            hard_colors = out.argmax(dim=1)
+
+            # Find conflicts for all edges at once.
+            u, v = batch.edge_index
+            conflicts = hard_colors[u] == hard_colors[v]
+
+            # Aggregate mistakes per graph.
+            edge_batch = batch.batch[batch.edge_index[0]]
+            mistakes_per_graph = scatter(
+                conflicts.long(), edge_batch, dim=0, reduce="sum"
+            )
+
+            # Count graphs with 0 mistakes.
+            perfect_graphs_in_batch = (mistakes_per_graph == 0).sum().item()
+
+            # Update totals.
+            total_perfect_graphs += perfect_graphs_in_batch
+            total_graphs += batch.num_graphs
+
+            # print(f"Batch: {perfect_graphs_in_batch}/{batch.num_graphs} perfect.")
+
+        print(f"Total: {total_perfect_graphs}/{total_graphs} perfect.")
+
+    model.train()
+
+
 CHECKPOINT_NAME = "checkpoints/checkpoint.pth"
 
 if __name__ == "__main__":
@@ -158,39 +195,7 @@ if __name__ == "__main__":
         }
         torch.save(checkpoint, CHECKPOINT_NAME)
 
+        evaluate_dataset(model, val_loader)
         # torch.set_printoptions(profile="full")
         # print(F.softmax(out, dim=1)[0:25])
         # torch.set_printoptions(profile="default")
-
-    model.eval()
-
-    with torch.no_grad():
-        total_perfect_graphs = 0
-        total_graphs = 0
-        for batch in val_loader:
-            # Process batch, apply softmax and find the most probable color assignment.
-            batch = batch.to(device)
-            logits = model(batch)
-            out = F.softmax(logits, dim=1)
-            hard_colors = out.argmax(dim=1)
-
-            # Find conflicts for all edges at once.
-            u, v = batch.edge_index
-            conflicts = hard_colors[u] == hard_colors[v]
-
-            # Aggregate mistakes per graph.
-            edge_batch = batch.batch[batch.edge_index[0]]
-            mistakes_per_graph = scatter(
-                conflicts.long(), edge_batch, dim=0, reduce="sum"
-            )
-
-            # Count graphs with 0 mistakes.
-            perfect_graphs_in_batch = (mistakes_per_graph == 0).sum().item()
-
-            # Update totals.
-            total_perfect_graphs += perfect_graphs_in_batch
-            total_graphs += batch.num_graphs
-
-            # print(f"Batch: {perfect_graphs_in_batch}/{batch.num_graphs} perfect.")
-
-        print(f"Total: {total_perfect_graphs}/{total_graphs} perfect.")
