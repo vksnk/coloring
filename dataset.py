@@ -46,7 +46,7 @@ class RigSetDataset(InMemoryDataset):
 
     @property
     def num_classes(self):
-        return 16
+        return 8
 
     @property
     def train_mask(self):
