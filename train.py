@@ -7,28 +7,22 @@ import torch.nn.functional as F
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from torch_geometric.nn import GCNConv, SAGEConv
+from torch_geometric.nn import GCNConv, SAGEConv, GINConv
 from torch_geometric.utils import scatter
 
 
 class GCCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super().__init__()
-        num_hidden_features = 64
-        self.linear_input = torch.nn.Linear(num_node_features, num_hidden_features)
-        self.conv1 = SAGEConv(
-            num_hidden_features, num_hidden_features, root_weight=True
-        )
-        self.layer_norm1 = torch.nn.LayerNorm(num_hidden_features)
-        self.conv2 = SAGEConv(
-            num_hidden_features, num_hidden_features, root_weight=True
-        )
-        self.layer_norm2 = torch.nn.LayerNorm(num_hidden_features)
-        self.conv3 = SAGEConv(
-            num_hidden_features, num_hidden_features, root_weight=True
-        )
-        self.layer_norm3 = torch.nn.LayerNorm(num_hidden_features)
-        self.linear_output = torch.nn.Linear(num_hidden_features, num_classes)
+        hidden_dim = 64
+        self.linear_input = torch.nn.Linear(num_node_features, hidden_dim)
+        self.num_conv_layers = 3
+        self.convs = torch.nn.ModuleList()
+        self.layer_norms = torch.nn.ModuleList()
+        for i in range(self.num_conv_layers):
+            self.convs.append(SAGEConv(hidden_dim, hidden_dim, root_weight=True))
+            self.layer_norms.append(torch.nn.LayerNorm(hidden_dim))
+        self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -37,26 +31,13 @@ class GCCN(torch.nn.Module):
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
 
-        x_in = x
-        x = self.conv1(x, edge_index)
-        x = self.layer_norm1(x)
-        x = F.relu(x)
-        x = F.dropout(x, training=self.training)
-        x = x + x_in
-
-        x_in = x
-        x = self.conv2(x, edge_index)
-        x = self.layer_norm2(x)
-        x = F.relu(x)
-        x = F.dropout(x, training=self.training)
-        x = x + x_in
-
-        x_in = x
-        x = self.conv3(x, edge_index)
-        x = self.layer_norm3(x)
-        x = F.relu(x)
-        x = F.dropout(x, training=self.training)
-        x = x + x_in
+        for i in range(self.num_conv_layers):
+            x_in = x
+            x = self.convs[i](x, edge_index)
+            x = self.layer_norms[i](x)
+            x = F.relu(x)
+            x = F.dropout(x, training=self.training)
+            x = x + x_in
 
         x = self.linear_output(x)
 
@@ -161,7 +142,7 @@ if __name__ == "__main__":
     )
 
     model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     #     optimizer, mode="min", factor=0.3, patience=5, min_lr=0.00001
     # )
@@ -178,7 +159,7 @@ if __name__ == "__main__":
 
     model.train()
 
-    for epoch in range(start_epoch, 100):
+    for epoch in range(start_epoch, 20):
         total_loss = 0.0
         out = None
         # Iterate over batches.
