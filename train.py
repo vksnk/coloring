@@ -14,7 +14,7 @@ from torch_geometric.utils import scatter
 class GCCN(torch.nn.Module):
     def __init__(self, num_node_features, num_classes):
         super().__init__()
-        hidden_dim = 64
+        hidden_dim = 128
         self.linear_input = torch.nn.Linear(num_node_features, hidden_dim)
         self.num_conv_layers = 3
         self.convs = torch.nn.ModuleList()
@@ -22,7 +22,10 @@ class GCCN(torch.nn.Module):
         for i in range(self.num_conv_layers):
             self.convs.append(SAGEConv(hidden_dim, hidden_dim, root_weight=True))
             self.layer_norms.append(torch.nn.LayerNorm(hidden_dim))
-        self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
+        self.linear_output = torch.nn.Linear(
+            (self.num_conv_layers + 0) * hidden_dim, num_classes
+        )
+        # self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
@@ -31,6 +34,7 @@ class GCCN(torch.nn.Module):
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
 
+        xs = []
         for i in range(self.num_conv_layers):
             x_in = x
             x = self.convs[i](x, edge_index)
@@ -38,7 +42,9 @@ class GCCN(torch.nn.Module):
             x = F.relu(x)
             x = F.dropout(x, training=self.training)
             x = x + x_in
+            xs.append(x)
 
+        x = torch.concat(xs, dim=1)
         x = self.linear_output(x)
 
         return x
@@ -69,6 +75,8 @@ def entropy_loss(h):
 def evaluate_dataset(model, loader):
     model.eval()
 
+    total_loss = 0.0
+
     total_conflicts = 0
     total_perfect_graphs = 0
     total_graphs = 0
@@ -78,11 +86,16 @@ def evaluate_dataset(model, loader):
             # Process batch, apply softmax and find the most probable color assignment.
             batch = batch.to(device)
             logits = model(batch)
+            loss = potts_loss(logits, batch.edge_index) + 0.02 * entropy_loss(logits)
+            total_loss += loss.item()
+
             out = F.softmax(logits, dim=1)
             hard_colors = out.argmax(dim=1)
 
-            # Find conflicts for all edges at once.
             u, v = batch.edge_index
+            node_counts = batch.batch.bincount()
+
+            # Find conflicts for all edges at once.
             conflicts = hard_colors[u] == hard_colors[v]
 
             total_conflicts += conflicts.sum().item()
@@ -110,10 +123,11 @@ def evaluate_dataset(model, loader):
 
     model.train()
 
-    return total_conflicts / total_graphs
+    return total_perfect_graphs, total_loss / len(train_loader)
 
 
 CHECKPOINT_NAME = "checkpoints/checkpoint.pth"
+BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
 
 if __name__ == "__main__":
     if torch.mps.is_available():
@@ -153,13 +167,15 @@ if __name__ == "__main__":
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
+        best_loss = checkpoint["best_loss"]
         print(f"Loaded saved checkpoint from epoch #{start_epoch - 1}")
     else:
         start_epoch = 0
+        best_loss = float("inf")
 
     model.train()
 
-    for epoch in range(start_epoch, 20):
+    for epoch in range(start_epoch, 200):
         total_loss = 0.0
         out = None
         # Iterate over batches.
@@ -178,18 +194,32 @@ if __name__ == "__main__":
             total_loss += loss.item()
 
         avg_loss = total_loss / len(train_loader)
-        print(f"Epoch #{epoch} loss: {avg_loss}")
+
+        num_correct, val_loss = evaluate_dataset(model, val_loader)
+
+        print(
+            f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}"
+        )
+
+        save_best = False
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            save_best = True
 
         # Save intermediate checkpoint, so we can continue training if needed.
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
-            "loss": loss,
+            "best_loss": best_loss,
         }
         torch.save(checkpoint, CHECKPOINT_NAME)
 
-        avg_conflicts = evaluate_dataset(model, val_loader)
+        if save_best:
+            print("Saving best loss model.")
+            torch.save(checkpoint, BEST_CHECKPOINT_NAME)
+
         # scheduler.step(avg_conflicts)
 
         # print(f"Current LR: {optimizer.param_groups[0]['lr']} Avg conflicts: {avg_conflicts}")
