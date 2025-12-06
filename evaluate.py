@@ -1,11 +1,16 @@
-import loss as l
+from dataset import RigSetDataset
+from loss import potts_loss, entropy_loss
+from model import GCCN
 
 import os
 
 import torch
 import torch.nn.functional as F
 
+from torch_geometric.loader import DataLoader
 from torch_geometric.utils import scatter
+
+BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
 
 
 def evaluate_dataset(model, loader, device):
@@ -22,9 +27,7 @@ def evaluate_dataset(model, loader, device):
             # Process batch, apply softmax and find the most probable color assignment.
             batch = batch.to(device)
             logits = model(batch)
-            loss = l.potts_loss(logits, batch.edge_index) + 0.02 * l.entropy_loss(
-                logits
-            )
+            loss = potts_loss(logits, batch.edge_index) + 0.02 * entropy_loss(logits)
             total_loss += loss.item()
 
             out = F.softmax(logits, dim=1)
@@ -62,3 +65,28 @@ def evaluate_dataset(model, loader, device):
     model.train()
 
     return total_perfect_graphs, total_loss / len(loader)
+
+
+if __name__ == "__main__":
+    device = torch.device("cpu")
+    pin_memory = False
+
+    dataset = RigSetDataset("data/")
+    test_dataset = dataset[dataset.test_mask]
+
+    test_loader = DataLoader(
+        test_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
+    )
+
+    model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
+    if os.path.exists(BEST_CHECKPOINT_NAME):
+        checkpoint = torch.load(
+            BEST_CHECKPOINT_NAME, weights_only=True, map_location=device
+        )
+
+        model.load_state_dict(checkpoint["model_state_dict"])
+        print(f"Loaded best saved checkpoint.")
+    else:
+        assert False
+
+    num_correct, val_loss = evaluate_dataset(model, test_loader, device)
