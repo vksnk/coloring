@@ -13,7 +13,19 @@ from torch_geometric.utils import scatter
 BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
 
 
-def evaluate_dataset(model, loader, device):
+def evaluate_gnn(model, batch, device):
+    # Process batch, apply softmax and find the most probable color assignment.
+    batch = batch.to(device)
+    logits = model(batch)
+    loss = potts_loss(logits, batch.edge_index) + 0.02 * entropy_loss(logits)
+
+    out = F.softmax(logits, dim=1)
+    pred_colors = out.argmax(dim=1)
+
+    return pred_colors, loss
+
+
+def evaluate_dataset(eval_f, model, loader, device):
     model.eval()
 
     total_loss = 0.0
@@ -24,20 +36,14 @@ def evaluate_dataset(model, loader, device):
     total_unsolvable = 0
     with torch.no_grad():
         for batch in loader:
-            # Process batch, apply softmax and find the most probable color assignment.
-            batch = batch.to(device)
-            logits = model(batch)
-            loss = potts_loss(logits, batch.edge_index) + 0.02 * entropy_loss(logits)
+            pred_color, loss = eval_f(model, batch, device)
             total_loss += loss.item()
-
-            out = F.softmax(logits, dim=1)
-            hard_colors = out.argmax(dim=1)
 
             u, v = batch.edge_index
             node_counts = batch.batch.bincount()
 
             # Find conflicts for all edges at once.
-            conflicts = hard_colors[u] == hard_colors[v]
+            conflicts = pred_color[u] == pred_color[v]
 
             total_conflicts += conflicts.sum().item()
 
@@ -89,4 +95,4 @@ if __name__ == "__main__":
     else:
         assert False
 
-    num_correct, val_loss = evaluate_dataset(model, test_loader, device)
+    num_correct, val_loss = evaluate_dataset(evaluate_gnn, model, test_loader, device)
