@@ -1,7 +1,7 @@
 from loss import potts_loss, entropy_loss
 from model import GCCN
 from dataset import RigSetDataset
-from evaluate import evaluate_dataset
+from evaluate import evaluate_dataset, wrap_evaluate_gnn
 
 import os
 
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(train_loader)
 
-        num_correct, val_loss = evaluate_dataset(model, val_loader, device)
+        num_correct, val_loss = evaluate_dataset(wrap_evaluate_gnn(model, device), val_loader)
 
         print(
             f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}"
