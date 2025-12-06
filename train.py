@@ -57,10 +57,19 @@ if __name__ == "__main__":
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         best_loss = checkpoint["best_loss"]
+        num_correct_graphs_log = checkpoint.get("num_correct_graphs_log", [])
+        train_loss_log = checkpoint.get("train_loss_log", [])
+        validation_loss_log = checkpoint.get("validation_loss_log", [])
+        print(num_correct_graphs_log)
+        print(train_loss_log)
+        print(validation_loss_log)
         print(f"Loaded saved checkpoint from epoch #{start_epoch - 1}")
     else:
         start_epoch = 0
         best_loss = float("inf")
+        num_correct_graphs_log = []
+        train_loss_log = []
+        validation_loss_log = []
 
     model.train()
 
@@ -84,7 +93,9 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(train_loader)
 
-        num_correct, val_loss = evaluate_dataset(wrap_evaluate_gnn(model, device), val_loader)
+        num_correct, val_loss = evaluate_dataset(
+            wrap_evaluate_gnn(model, device), val_loader
+        )
 
         print(
             f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}"
@@ -96,12 +107,19 @@ if __name__ == "__main__":
             best_loss = val_loss
             save_best = True
 
+        num_correct_graphs_log.append(num_correct)
+        train_loss_log.append(avg_loss)
+        validation_loss_log.append(val_loss)
+
         # Save intermediate checkpoint, so we can continue training if needed.
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "best_loss": best_loss,
+            "num_correct_graphs_log": num_correct_graphs_log,
+            "train_loss_log": train_loss_log,
+            "validation_loss_log": validation_loss_log,
         }
         torch.save(checkpoint, CHECKPOINT_NAME)
 
