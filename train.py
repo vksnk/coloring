@@ -156,10 +156,14 @@ if __name__ == "__main__":
     )
 
     model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=5e-4)
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer, mode="min", factor=0.3, patience=5, min_lr=0.00001
-    # )
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=5e-4)
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer,
+        T_0=50,  # Number of epochs for the first restart
+        T_mult=1,  # Double the cycle length after every restart (50, then 100, then 200...)
+        eta_min=1e-6,  # Minimum LR to reach at the bottom of the curve
+    )
 
     if os.path.exists(CHECKPOINT_NAME):
         checkpoint = torch.load(CHECKPOINT_NAME, weights_only=True, map_location=device)
@@ -175,7 +179,7 @@ if __name__ == "__main__":
 
     model.train()
 
-    for epoch in range(start_epoch, 200):
+    for epoch in range(start_epoch, 400):
         total_loss = 0.0
         out = None
         # Iterate over batches.
@@ -220,6 +224,7 @@ if __name__ == "__main__":
             print("Saving best loss model.")
             torch.save(checkpoint, BEST_CHECKPOINT_NAME)
 
+        scheduler.step()
         # scheduler.step(avg_conflicts)
 
         # print(f"Current LR: {optimizer.param_groups[0]['lr']} Avg conflicts: {avg_conflicts}")
