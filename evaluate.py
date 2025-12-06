@@ -25,9 +25,11 @@ def evaluate_gnn(model, batch, device):
     return pred_colors, loss
 
 
-def evaluate_dataset(eval_f, model, loader, device):
-    model.eval()
+def wrap_evaluate_gnn(model, device):
+    return lambda batch: evaluate_gnn(model, batch, device)
 
+
+def evaluate_dataset(eval_f, loader):
     total_loss = 0.0
 
     total_conflicts = 0
@@ -36,7 +38,7 @@ def evaluate_dataset(eval_f, model, loader, device):
     total_unsolvable = 0
     with torch.no_grad():
         for batch in loader:
-            pred_color, loss = eval_f(model, batch, device)
+            pred_color, loss = eval_f(batch)
             total_loss += loss.item()
 
             u, v = batch.edge_index
@@ -68,8 +70,6 @@ def evaluate_dataset(eval_f, model, loader, device):
             f"Total: {total_perfect_graphs}/{total_graphs} perfect with {total_unsolvable} unsolvable."
         )
 
-    model.train()
-
     return total_perfect_graphs, total_loss / len(loader)
 
 
@@ -95,4 +95,7 @@ if __name__ == "__main__":
     else:
         assert False
 
-    num_correct, val_loss = evaluate_dataset(evaluate_gnn, model, test_loader, device)
+    model.eval()
+    num_correct, val_loss = evaluate_dataset(
+        wrap_evaluate_gnn(model, device), test_loader
+    )
