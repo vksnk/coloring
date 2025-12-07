@@ -1,3 +1,4 @@
+from args import get_args, checkpoint_name, best_checkpoint_name
 from dataset import RigSetDataset
 from loss import potts_loss, entropy_loss
 from model import GCCN
@@ -111,10 +112,13 @@ def evaluate_dataset(eval_f, loader):
             f"Total: {total_perfect_graphs}/{total_graphs} perfect with {total_unsolvable} unsolvable."
         )
 
-    return total_perfect_graphs, total_loss / len(loader)
+    return total_perfect_graphs, total_conflicts, total_loss / len(loader)
 
 
 if __name__ == "__main__":
+    # Get model parameters from the command-line.
+    args = get_args()
+
     device = torch.device("cpu")
     pin_memory = False
 
@@ -137,34 +141,34 @@ if __name__ == "__main__":
         assert False
 
     model.eval()
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_gnn(model, device), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("largest_first"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("random_sequential"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("smallest_last"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("independent_set"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("connected_sequential_bfs"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("connected_sequential_dfs"), test_loader
     )
 
-    num_correct, val_loss = evaluate_dataset(
+    num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_networkx("saturation_largest_first"), test_loader
     )

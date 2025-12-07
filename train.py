@@ -62,9 +62,11 @@ if __name__ == "__main__":
         start_epoch = checkpoint["epoch"] + 1
         best_loss = checkpoint["best_loss"]
         num_correct_graphs_log = checkpoint.get("num_correct_graphs_log", [])
+        num_mistakes_log = checkpoint.get("num_mistakes_log", [])
         train_loss_log = checkpoint.get("train_loss_log", [])
         validation_loss_log = checkpoint.get("validation_loss_log", [])
         print(num_correct_graphs_log)
+        print(num_mistakes_log)
         print(train_loss_log)
         print(validation_loss_log)
         print(f"Loaded saved checkpoint from epoch #{start_epoch - 1}")
@@ -72,6 +74,7 @@ if __name__ == "__main__":
         start_epoch = 0
         best_loss = float("inf")
         num_correct_graphs_log = []
+        num_mistakes_log = []
         train_loss_log = []
         validation_loss_log = []
 
@@ -86,10 +89,6 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             out = model(batch)
 
-            # torch.set_printoptions(profile="full")
-            # print(F.softmax(out, dim=1)[0:25])
-            # torch.set_printoptions(profile="default")
-
             loss = potts_loss(out, batch.edge_index) + 0.02 * entropy_loss(out)
             loss.backward()
             optimizer.step()
@@ -97,7 +96,7 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(train_loader)
 
-        num_correct, val_loss = evaluate_dataset(
+        num_correct, num_mistakes, val_loss = evaluate_dataset(
             wrap_evaluate_gnn(model, device), val_loader
         )
 
@@ -112,6 +111,7 @@ if __name__ == "__main__":
             save_best = True
 
         num_correct_graphs_log.append(num_correct)
+        num_mistakes_log.append(num_mistakes)
         train_loss_log.append(avg_loss)
         validation_loss_log.append(val_loss)
 
@@ -122,6 +122,7 @@ if __name__ == "__main__":
             "optimizer_state_dict": optimizer.state_dict(),
             "best_loss": best_loss,
             "num_correct_graphs_log": num_correct_graphs_log,
+            "num_mistakes_log": num_mistakes_log,
             "train_loss_log": train_loss_log,
             "validation_loss_log": validation_loss_log,
         }
