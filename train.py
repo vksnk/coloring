@@ -101,7 +101,7 @@ if __name__ == "__main__":
         )
 
         print(
-            f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}"
+            f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}, num_mistakes = {num_mistakes}"
         )
 
         save_best = False
