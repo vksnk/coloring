@@ -5,24 +5,28 @@ from torch_geometric.nn import GCNConv, SAGEConv, GINConv
 
 
 class GCCN(torch.nn.Module):
-    def __init__(self, num_node_features, num_classes):
+    def __init__(self, num_classes):
         super().__init__()
-        hidden_dim = 128
-        self.linear_input = torch.nn.Linear(num_node_features, hidden_dim)
+        self.hidden_dim = 128
+        self.input_dim = 16
+        self.linear_input = torch.nn.Linear(self.input_dim, self.hidden_dim)
         self.num_conv_layers = 3
         self.convs = torch.nn.ModuleList()
         self.layer_norms = torch.nn.ModuleList()
         for i in range(self.num_conv_layers):
-            self.convs.append(SAGEConv(hidden_dim, hidden_dim, root_weight=True))
-            self.layer_norms.append(torch.nn.LayerNorm(hidden_dim))
+            self.convs.append(
+                SAGEConv(self.hidden_dim, self.hidden_dim, root_weight=True)
+            )
+            self.layer_norms.append(torch.nn.LayerNorm(self.hidden_dim))
         self.linear_output = torch.nn.Linear(
-            (self.num_conv_layers + 0) * hidden_dim, num_classes
+            (self.num_conv_layers + 0) * self.hidden_dim, num_classes
         )
         # self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
 
     def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch
+        num_nodes, edge_index, batch = data.num_nodes, data.edge_index, data.batch
 
+        x = torch.randn(num_nodes, self.input_dim)
         x = self.linear_input(x)
         x = F.relu(x)
         x = F.dropout(x, training=self.training)

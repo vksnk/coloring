@@ -40,7 +40,7 @@ if __name__ == "__main__":
         val_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
-    model = GCCN(dataset.num_node_features, dataset.num_classes).to(device)
+    model = GCCN(dataset.num_classes).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=5e-4)
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(

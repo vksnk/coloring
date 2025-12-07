@@ -41,10 +41,6 @@ class RigSetDataset(InMemoryDataset):
         return ["rig_set.pt"]
 
     @property
-    def num_node_features(self):
-        return 16
-
-    @property
     def num_classes(self):
         return 8
 
@@ -92,7 +88,6 @@ class RigSetDataset(InMemoryDataset):
                     edges1.append(nodes[node1])
                     edges2.append(nodes[node2])
 
-                x = torch.randn(len(nodes), self.num_node_features)
                 edge_index = torch.tensor([edges1, edges2], dtype=torch.long)
 
                 # If graph is too large we won't be able to find a solution in reasonable
@@ -108,7 +103,7 @@ class RigSetDataset(InMemoryDataset):
                         [edges1, edges2], len(nodes)
                     )
 
-                data = Data(x=x, edge_index=edge_index, y=coloring, yk=best_k)
+                data = Data(num_nodes=len(nodes), edge_index=edge_index, yk=best_k)
                 data.validate(raise_on_error=True)
 
                 datas.append(data)
@@ -117,7 +112,34 @@ class RigSetDataset(InMemoryDataset):
     def process(self):
         basic_graphs = self.process_folder("../coloring-dataset/basic_graphs")
         codenet_graphs = self.process_folder("../coloring-dataset/codenet_graphs")
+
         data_list = basic_graphs + codenet_graphs
+
+        speccpu_graph_folders = [
+            "500.perlbench_r",
+            "502.gcc_r",
+            "505.mcf_r",
+            "507.cactuBSSN_r",
+            "511.povray_r",
+            "519.lbm_r",
+            "521.wrf_r",
+            "526.blender_r",
+            "527.cam4_r",
+            "531.deepsjeng_r",
+            "541.leela_r",
+            "544.nab_r",
+            "557.xz_r",
+            "600.perlbench_s",
+            "602.gcc_s",
+            "605.mcf_s",
+            "628.pop2_s",
+            "999.specrand_i",
+        ]
+
+        for subfolder in speccpu_graph_folders:
+            data_list += self.process_folder(
+                f"../coloring-dataset/spec_graphs/{subfolder}"
+            )
 
         if self.pre_filter is not None:
             data_list = [data for data in data_list if self.pre_filter(data)]
@@ -146,6 +168,7 @@ class RigSetDataset(InMemoryDataset):
         data.val_mask = val_mask
         data.test_mask = test_mask
 
+        print("Total number of graphs", len(data_list))
         torch.save((data, slices), self.processed_paths[0])
 
 
