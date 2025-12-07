@@ -5,12 +5,12 @@ from torch_geometric.nn import GCNConv, SAGEConv, GINConv
 
 
 class GCCN(torch.nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_of_gcns, input_dim, hidden_dim, num_classes):
         super().__init__()
-        self.hidden_dim = 128
-        self.input_dim = 16
+        self.hidden_dim = hidden_dim
+        self.input_dim = input_dim
         self.linear_input = torch.nn.Linear(self.input_dim, self.hidden_dim)
-        self.num_conv_layers = 3
+        self.num_conv_layers = num_of_gcns
         self.convs = torch.nn.ModuleList()
         self.layer_norms = torch.nn.ModuleList()
         for i in range(self.num_conv_layers):
@@ -19,7 +19,7 @@ class GCCN(torch.nn.Module):
             )
             self.layer_norms.append(torch.nn.LayerNorm(self.hidden_dim))
         self.linear_output = torch.nn.Linear(
-            (self.num_conv_layers + 0) * self.hidden_dim, num_classes
+            (self.num_conv_layers + 1) * self.hidden_dim, num_classes
         )
         # self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
 
@@ -31,7 +31,7 @@ class GCCN(torch.nn.Module):
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
 
-        xs = []
+        xs = [x]
         for i in range(self.num_conv_layers):
             x_in = x
             x = self.convs[i](x, edge_index)

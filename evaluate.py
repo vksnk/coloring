@@ -2,16 +2,15 @@ from dataset import RigSetDataset
 from loss import potts_loss, entropy_loss
 from model import GCCN
 
+import argparse
 import os
+import sys
 
 import torch
 import torch.nn.functional as F
 
 from torch_geometric.loader import DataLoader
-from torch_geometric.utils import scatter
-
-import networkx as nx
-from torch_geometric.utils import to_networkx
+from torch_geometric.utils import scatter, to_networkx
 
 BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
 

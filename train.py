@@ -1,6 +1,7 @@
+from args import get_args, checkpoint_name, best_checkpoint_name
+from dataset import RigSetDataset
 from loss import potts_loss, entropy_loss
 from model import GCCN
-from dataset import RigSetDataset
 from evaluate import evaluate_dataset, wrap_evaluate_gnn
 
 import os
@@ -10,11 +11,10 @@ import torch.nn.functional as F
 
 from torch_geometric.loader import DataLoader
 
-
-CHECKPOINT_NAME = "checkpoints/checkpoint.pth"
-BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
-
 if __name__ == "__main__":
+    # Get model parameters from the command-line.
+    args = get_args()
+
     if torch.mps.is_available():
         # MPS seems to be much slower for this task.
         print("Using cpu backend...")
@@ -40,7 +40,9 @@ if __name__ == "__main__":
         val_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
-    model = GCCN(dataset.num_classes).to(device)
+    model = GCCN(
+        args.num_of_gcns, args.input_dim, args.hidden_dim, dataset.num_classes
+    ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=5e-4)
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
@@ -50,8 +52,10 @@ if __name__ == "__main__":
         eta_min=1e-6,  # Minimum LR to reach at the bottom of the curve
     )
 
-    if os.path.exists(CHECKPOINT_NAME):
-        checkpoint = torch.load(CHECKPOINT_NAME, weights_only=True, map_location=device)
+    if os.path.exists(checkpoint_name(args)):
+        checkpoint = torch.load(
+            checkpoint_name(args), weights_only=True, map_location=device
+        )
 
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -121,13 +125,10 @@ if __name__ == "__main__":
             "train_loss_log": train_loss_log,
             "validation_loss_log": validation_loss_log,
         }
-        torch.save(checkpoint, CHECKPOINT_NAME)
+        torch.save(checkpoint, checkpoint_name(args))
 
         if save_best:
             print("Saving best loss model.")
-            torch.save(checkpoint, BEST_CHECKPOINT_NAME)
+            torch.save(checkpoint, best_checkpoint_name(args))
 
         scheduler.step()
-        # scheduler.step(avg_conflicts)
-
-        # print(f"Current LR: {optimizer.param_groups[0]['lr']} Avg conflicts: {avg_conflicts}")
