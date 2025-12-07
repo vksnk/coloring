@@ -26,7 +26,7 @@ class GCCN(torch.nn.Module):
     def forward(self, data):
         num_nodes, edge_index, batch = data.num_nodes, data.edge_index, data.batch
 
-        x = torch.randn(num_nodes, self.input_dim)
+        x = torch.randn(num_nodes, self.input_dim).to(self.linear_input.weight.device)
         x = self.linear_input(x)
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
