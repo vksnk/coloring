@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 
+from torch_geometric.data import Batch
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv
 
 
@@ -21,7 +22,6 @@ class GCCN(torch.nn.Module):
         self.linear_output = torch.nn.Linear(
             (self.num_conv_layers + 1) * self.hidden_dim, num_classes
         )
-        # self.linear_output = torch.nn.Linear(hidden_dim, num_classes)
 
     def forward(self, data):
         num_nodes, edge_index, batch = data.num_nodes, data.edge_index, data.batch
@@ -45,3 +45,23 @@ class GCCN(torch.nn.Module):
         x = self.linear_output(x)
 
         return x
+
+
+class GCCNWraper(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x, edge_index, batch_index):
+        # --- RECONSTRUCTION ---
+        # We manually instantiate a Batch object.
+        # Ideally, we set parameters directly to avoid complex collation logic
+        # that might confuse the tracer.
+
+        # Method A: Direct instantiation (Cleanest for tracing)
+        batch_obj = Batch(batch=batch_index, x=x, edge_index=edge_index)
+
+        # Method B: If your model needs specific attributes like ptr or slices,
+        # you might need to add them here, but usually 'batch' is enough.
+
+        return self.model(batch_obj)

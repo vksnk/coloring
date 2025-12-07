@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 def potts_loss(h, edge_index):
     h = F.softmax(h, dim=1)
-    # print(h[0:10])
     u = edge_index[0]
     v = edge_index[1]
     h_u = h[u]

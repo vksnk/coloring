@@ -40,5 +40,13 @@ def get_args():
         help="The dimension size of the hidden layers",
     )
 
+    parser.add_argument(
+        "--draw_model",
+        type=bool,
+        required=False,
+        default=False,
+        help="Save the drawing of the model architecture into file",
+    )
+
     # Parse the arguments
     return parser.parse_args()

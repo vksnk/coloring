@@ -1,7 +1,7 @@
 from args import get_args, checkpoint_name, best_checkpoint_name
 from dataset import RigSetDataset
 from loss import potts_loss, entropy_loss
-from model import GCCN
+from model import GCCN, GCCNWraper
 from evaluate import evaluate_dataset, wrap_evaluate_gnn
 
 import os
@@ -10,6 +10,30 @@ import torch
 import torch.nn.functional as F
 
 from torch_geometric.loader import DataLoader
+
+from torchview import draw_graph
+
+
+def draw_model(model):
+    wrapped_model = GCCNWraper(model)
+
+    # Create dummy data.
+    num_nodes = 5
+    num_features = 16
+
+    dummy_x = torch.randn(num_nodes, num_features)
+    dummy_edge_index = torch.randint(0, num_nodes, (2, 10))
+    dummy_batch_idx = torch.tensor([0, 0, 0, 1, 1], dtype=torch.long)
+
+    # Visualize.
+    model_graph = draw_graph(
+        wrapped_model,
+        input_data=[dummy_x, dummy_edge_index, dummy_batch_idx],  # Pass all 3
+        expand_nested=True,
+    )
+
+    model_graph.visual_graph.render(filename="model_arch", format="png")
+
 
 if __name__ == "__main__":
     # Get model parameters from the command-line.
@@ -43,6 +67,10 @@ if __name__ == "__main__":
     model = GCCN(
         args.num_of_gcns, args.input_dim, args.hidden_dim, dataset.num_classes
     ).to(device)
+
+    if args.draw_model:
+        draw_model(model)
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=5e-4)
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
