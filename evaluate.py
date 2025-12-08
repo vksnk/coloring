@@ -131,7 +131,13 @@ if __name__ == "__main__":
         test_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
-    model = GCCN(args.num_classes).to(device)
+    model = GCCN(
+        args.num_of_gcns,
+        args.conv_type,
+        args.input_dim,
+        args.hidden_dim,
+        args.num_classes,
+    ).to(device)
     if os.path.exists(BEST_CHECKPOINT_NAME):
         checkpoint = torch.load(
             BEST_CHECKPOINT_NAME, weights_only=True, map_location=device

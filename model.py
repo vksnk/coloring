@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from torch_geometric.data import Batch
-from torch_geometric.nn import GCNConv, SAGEConv, GINConv
+from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv
 
 
 class GCCN(torch.nn.Module):
@@ -12,7 +12,7 @@ class GCCN(torch.nn.Module):
     final classification.
     """
 
-    def __init__(self, num_of_gcns, input_dim, hidden_dim, num_classes):
+    def __init__(self, num_of_gcns, conv_type, input_dim, hidden_dim, num_classes):
         """
         Initializes the architecture of the model.
         """
@@ -27,11 +27,26 @@ class GCCN(torch.nn.Module):
         self.convs = torch.nn.ModuleList()
         self.layer_norms = torch.nn.ModuleList()
 
-        # Initialize convolution layers layers and corresponding LayerNorms.
+        # Initialize convolution layers layers and corresponding layer norms.
         for i in range(self.num_conv_layers):
-            self.convs.append(
-                SAGEConv(self.hidden_dim, self.hidden_dim, root_weight=True)
-            )
+            if conv_type == "sage":
+                conv = SAGEConv(self.hidden_dim, self.hidden_dim, root_weight=True)
+            elif conv_type == "gcn":
+                conv = GCNConv(self.hidden_dim, self.hidden_dim)
+            elif conv_type == "gin":
+                # GIN requires an MLP to map features within the aggregation
+                gin_mlp = torch.nn.Sequential(
+                    torch.nn.Linear(self.hidden_dim, self.hidden_dim),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(self.hidden_dim, self.hidden_dim),
+                )
+                conv = GINConv(gin_mlp, train_eps=True)
+            elif conv_type == "gat":
+                conv = GATConv(self.hidden_dim, self.hidden_dim, heads=1)
+            else:
+                assert False, f"Unknown conv_type: {conv_type}"
+
+            self.convs.append(conv)
             self.layer_norms.append(torch.nn.LayerNorm(self.hidden_dim))
 
         # The output layer size is (N + 1) * hidden_dim because we concatenate

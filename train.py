@@ -65,7 +65,11 @@ if __name__ == "__main__":
     )
 
     model = GCCN(
-        args.num_of_gcns, args.input_dim, args.hidden_dim, args.num_classes
+        args.num_of_gcns,
+        args.conv_type,
+        args.input_dim,
+        args.hidden_dim,
+        args.num_classes,
     ).to(device)
 
     if args.draw_model:
