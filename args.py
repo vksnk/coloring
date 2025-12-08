@@ -4,11 +4,11 @@ import sys
 
 
 def checkpoint_name(args):
-    return f"checkpoints/checkpoint_{args.num_of_gcns}_{args.input_dim}_{args.hidden_dim}.pth"
+    return f"checkpoints/checkpoint_{args.conv_type}_{args.num_of_gcns}_{args.input_dim}_{args.hidden_dim}_{args.num_classes}.pth"
 
 
 def best_checkpoint_name(args):
-    return f"checkpoints/best_checkpoint_{args.num_of_gcns}_{args.input_dim}_{args.hidden_dim}.pth"
+    return f"checkpoints/best_checkpoint_{args.conv_type}_{args.num_of_gcns}_{args.input_dim}_{args.hidden_dim}_{args.num_classes}.pth"
 
 
 def get_args():
@@ -38,6 +38,22 @@ def get_args():
         required=False,
         default=128,
         help="The dimension size of the hidden layers",
+    )
+
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        required=False,
+        default=8,
+        help="The maximum number of colors/the size of the output layer",
+    )
+
+    parser.add_argument(
+        "--conv_type",
+        type=str,
+        required=False,
+        default="sage",
+        help="The type of the graph convolution layer to use.",
     )
 
     parser.add_argument(

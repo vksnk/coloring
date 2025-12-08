@@ -41,10 +41,6 @@ class RigSetDataset(InMemoryDataset):
         return ["rig_set.pt"]
 
     @property
-    def num_classes(self):
-        return 8
-
-    @property
     def train_mask(self):
         return self._data.train_mask
 

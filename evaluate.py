@@ -16,7 +16,7 @@ from torch_geometric.utils import scatter, to_networkx
 BEST_CHECKPOINT_NAME = "checkpoints/best_checkpoint.pth"
 
 
-def evaluate_networkx(batch, strategy):
+def evaluate_networkx(batch, num_classes, strategy):
     """
     Splits a PyG Batch, colors each graph individually to ensure
     local context, and re-assembles the results into a single Tensor.
@@ -42,9 +42,11 @@ def evaluate_networkx(batch, strategy):
         # Run coloring on this specific graph
         coloring_dict = nx.coloring.greedy_color(G, strategy=strategy)
 
-        # Sort colors by node index (0 to num_nodes_in_this_graph)
+        # Sort colors by node index (0 to num_nodes_in_this_graph - 1)
         # and append to the master list
-        graph_colors = [min(coloring_dict[i], 7) for i in range(data.num_nodes)]
+        graph_colors = [
+            min(coloring_dict[i], num_classes - 1) for i in range(data.num_nodes)
+        ]
         all_colors.extend(graph_colors)
 
     # 3. Convert the combined list back to a Tensor on the correct device
@@ -52,7 +54,7 @@ def evaluate_networkx(batch, strategy):
 
 
 def wrap_evaluate_networkx(strategy):
-    return lambda batch: evaluate_networkx(batch, strategy)
+    return lambda batch, num_classes: evaluate_networkx(batch, num_classes, strategy)
 
 
 def evaluate_gnn(model, batch, device):
@@ -68,10 +70,10 @@ def evaluate_gnn(model, batch, device):
 
 
 def wrap_evaluate_gnn(model, device):
-    return lambda batch: evaluate_gnn(model, batch, device)
+    return lambda batch, num_classes: evaluate_gnn(model, batch, device)
 
 
-def evaluate_dataset(eval_f, loader):
+def evaluate_dataset(eval_f, loader, num_classes):
     total_loss = 0.0
 
     total_conflicts = 0
@@ -80,7 +82,7 @@ def evaluate_dataset(eval_f, loader):
     total_unsolvable = 0
     with torch.no_grad():
         for batch in loader:
-            pred_color, loss = eval_f(batch)
+            pred_color, loss = eval_f(batch, num_classes)
             total_loss += loss
 
             u, v = batch.edge_index
@@ -103,7 +105,7 @@ def evaluate_dataset(eval_f, loader):
             # Update totals.
             total_perfect_graphs += perfect_graphs_in_batch
             total_graphs += batch.num_graphs
-            total_unsolvable += (batch.yk > 8).sum().item()
+            total_unsolvable += (batch.yk > num_classes).sum().item()
             # print(batch.yk)
 
             # print(f"Batch: {perfect_graphs_in_batch}/{batch.num_graphs} perfect.")
@@ -129,7 +131,7 @@ if __name__ == "__main__":
         test_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
-    model = GCCN(dataset.num_classes).to(device)
+    model = GCCN(args.num_classes).to(device)
     if os.path.exists(BEST_CHECKPOINT_NAME):
         checkpoint = torch.load(
             BEST_CHECKPOINT_NAME, weights_only=True, map_location=device

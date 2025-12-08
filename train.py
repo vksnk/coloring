@@ -65,7 +65,7 @@ if __name__ == "__main__":
     )
 
     model = GCCN(
-        args.num_of_gcns, args.input_dim, args.hidden_dim, dataset.num_classes
+        args.num_of_gcns, args.input_dim, args.hidden_dim, args.num_classes
     ).to(device)
 
     if args.draw_model:
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         avg_loss = total_loss / len(train_loader)
 
         num_correct, num_mistakes, val_loss = evaluate_dataset(
-            wrap_evaluate_gnn(model, device), val_loader
+            wrap_evaluate_gnn(model, device), val_loader, args.num_classes
         )
 
         print(
