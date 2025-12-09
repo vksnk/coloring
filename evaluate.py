@@ -7,6 +7,8 @@ import argparse
 import os
 import sys
 
+import networkx as nx
+
 import torch
 import torch.nn.functional as F
 
@@ -138,10 +140,8 @@ if __name__ == "__main__":
         args.hidden_dim,
         args.num_classes,
     ).to(device)
-    if os.path.exists(BEST_CHECKPOINT_NAME):
-        checkpoint = torch.load(
-            BEST_CHECKPOINT_NAME, weights_only=True, map_location=device
-        )
+    if os.path.exists(args.checkpoint):
+        checkpoint = torch.load(args.checkpoint, weights_only=True, map_location=device)
 
         model.load_state_dict(checkpoint["model_state_dict"])
         print(f"Loaded best saved checkpoint.")
@@ -150,33 +150,33 @@ if __name__ == "__main__":
 
     model.eval()
     num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_gnn(model, device), test_loader
+        wrap_evaluate_gnn(model, device), test_loader, args.num_classes
     )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("largest_first"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("largest_first"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("random_sequential"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("random_sequential"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("smallest_last"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("smallest_last"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("independent_set"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("independent_set"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("connected_sequential_bfs"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("connected_sequential_bfs"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("connected_sequential_dfs"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("connected_sequential_dfs"), test_loader, args.num_classes
+    # )
 
-    num_correct, total_conflicts, val_loss = evaluate_dataset(
-        wrap_evaluate_networkx("saturation_largest_first"), test_loader
-    )
+    # num_correct, total_conflicts, val_loss = evaluate_dataset(
+    #     wrap_evaluate_networkx("saturation_largest_first"), test_loader, args.num_classes
+    # )

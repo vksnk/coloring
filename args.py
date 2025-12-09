@@ -53,7 +53,7 @@ def get_args():
         type=str,
         required=False,
         default="sage",
-        help="The type of the graph convolution layer to use.",
+        help="The type of the graph convolution layer to use",
     )
 
     parser.add_argument(
@@ -62,6 +62,13 @@ def get_args():
         required=False,
         default=False,
         help="Save the drawing of the model architecture into file",
+    )
+
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        required=False,
+        help="The path to checkpoint for evaluation",
     )
 
     # Parse the arguments

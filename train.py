@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer,
-        T_0=50,  # Number of epochs for the first restart
+        T_0=20,  # Number of epochs for the first restart
         T_mult=1,  # Double the cycle length after every restart (50, then 100, then 200...)
         eta_min=1e-6,  # Minimum LR to reach at the bottom of the curve
     )
@@ -112,10 +112,11 @@ if __name__ == "__main__":
 
     model.train()
 
-    for epoch in range(start_epoch, 400):
+    for epoch in range(start_epoch, 500):
         total_loss = 0.0
         out = None
         # Iterate over batches.
+        batch_index = 0
         for batch in train_loader:
             batch = batch.to(device)
             optimizer.zero_grad()
@@ -125,6 +126,9 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+
+            scheduler.step(epoch + batch_index / len(train_loader))
+            batch_index += 1
 
         avg_loss = total_loss / len(train_loader)
 
@@ -163,5 +167,3 @@ if __name__ == "__main__":
         if save_best:
             print("Saving best loss model.")
             torch.save(checkpoint, best_checkpoint_name(args))
-
-        scheduler.step()
