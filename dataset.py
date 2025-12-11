@@ -106,6 +106,7 @@ class RigSetDataset(InMemoryDataset):
         return datas
 
     def process(self):
+        # Load the dataset and parse the files to extract the graphs.
         basic_graphs = self.process_folder("../coloring-dataset/basic_graphs")
         codenet_graphs = self.process_folder("../coloring-dataset/codenet_graphs")
 
@@ -143,13 +144,14 @@ class RigSetDataset(InMemoryDataset):
         if self.pre_transform is not None:
             data_list = [self.pre_transform(data) for data in data_list]
 
-        # Split into training, validation and test.
+        # Reshuffle data and split into training, validation and test.
         random.shuffle(data_list)
 
         n = len(data_list)
         n_train = int(n * 0.8)
         n_val = int(n * 0.1)
 
+        # Create masks for each of the subsets.
         train_mask = torch.zeros(n, dtype=torch.bool)
         val_mask = torch.zeros(n, dtype=torch.bool)
         test_mask = torch.zeros(n, dtype=torch.bool)
@@ -160,11 +162,11 @@ class RigSetDataset(InMemoryDataset):
 
         data, slices = self.collate(data_list)
 
+        # Keep masks so they are the same each time we load the stored dataset.
         data.train_mask = train_mask
         data.val_mask = val_mask
         data.test_mask = test_mask
 
-        print("Total number of graphs", len(data_list))
         torch.save((data, slices), self.processed_paths[0])
 
 
