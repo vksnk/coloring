@@ -119,6 +119,48 @@ def evaluate_dataset(eval_f, loader, num_classes):
     return total_perfect_graphs, total_conflicts, total_loss / len(loader)
 
 
+def evaluate_with_multistart(loader, model, device, num_starts=20):
+    total_perfect_graphs = 0
+    total_graphs = 0
+
+    with torch.no_grad():
+        for batch in loader:
+            batch = batch.to(device)
+
+            # Storage for the best solution found so for this batch.
+            best_conflicts = torch.full(
+                (batch.num_graphs,), float("inf"), device=device
+            )
+
+            for i in range(num_starts):
+                # Run the model.
+                logits = model(batch)
+                out = F.softmax(logits, dim=1)
+                preds = out.argmax(dim=1)
+
+                # Count conflicts per graph.
+                u, v = batch.edge_index
+                conflicts = preds[u] == preds[v]
+                edge_batch = batch.batch[u]
+
+                # Sum conflicts per graph.
+                current_conflicts = scatter(
+                    conflicts.long(), edge_batch, dim=0, reduce="sum"
+                )
+
+                # If current run is better than best run, overwrite it.
+                best_conflicts = torch.min(best_conflicts, current_conflicts)
+
+            # Count how many graphs in this batch were solved.
+            perfect_in_batch = (best_conflicts == 0).sum().item()
+            total_perfect_graphs += perfect_in_batch
+            total_graphs += batch.num_graphs
+
+        print(f"Total Solved: {total_perfect_graphs}/{total_graphs}")
+
+    return total_perfect_graphs, total_conflicts
+
+
 if __name__ == "__main__":
     # Get model parameters from the command-line.
     args = get_args()
@@ -152,6 +194,8 @@ if __name__ == "__main__":
     num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_gnn(model, device), test_loader, args.num_classes
     )
+    evaluate_with_multistart(test_loader, model, device, num_starts=1)
+    evaluate_with_multistart(test_loader, model, device)
 
     # num_correct, total_conflicts, val_loss = evaluate_dataset(
     #     wrap_evaluate_networkx("largest_first"), test_loader, args.num_classes
