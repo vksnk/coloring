@@ -132,9 +132,11 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(train_loader)
 
+        model.eval()
         num_correct, num_mistakes, val_loss = evaluate_dataset(
             wrap_evaluate_gnn(model, device), val_loader, args.num_classes
         )
+        model.train()
 
         print(
             f"Epoch #{epoch} training loss = {avg_loss}, validation_loss = {val_loss}, num_mistakes = {num_mistakes}"
