@@ -15,6 +15,7 @@ from torchview import draw_graph
 
 
 def draw_model(model):
+    """Draws a visualization of the model and saves it into file."""
     wrapped_model = GCCNWraper(model)
 
     # Create dummy data.
@@ -39,6 +40,7 @@ if __name__ == "__main__":
     # Get model parameters from the command-line.
     args = get_args()
 
+    # Select one of the devices available devices.
     if torch.mps.is_available():
         # MPS seems to be much slower for this task.
         print("Using cpu backend...")
@@ -53,6 +55,7 @@ if __name__ == "__main__":
         device = torch.device("cpu")
         pin_memory = False
 
+    # Load training and validation dataset.
     dataset = RigSetDataset("data/")
     train_dataset = dataset[dataset.train_mask]
     val_dataset = dataset[dataset.val_mask]
@@ -64,6 +67,7 @@ if __name__ == "__main__":
         val_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory
     )
 
+    # Instantiate a model.
     model = GCCN(
         args.num_of_gcns,
         args.conv_type,
@@ -75,15 +79,18 @@ if __name__ == "__main__":
     if args.draw_model:
         draw_model(model)
 
+    # Create optimizer with the scheduler.
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, weight_decay=5e-4)
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer,
-        T_0=20,  # Number of epochs for the first restart
-        T_mult=1,  # Double the cycle length after every restart (50, then 100, then 200...)
-        eta_min=1e-6,  # Minimum LR to reach at the bottom of the curve
+        T_0=20,  # Number of epochs for the first restart.
+        T_mult=1,
+        eta_min=1e-6,  # Minimum LR to reach at the bottom of the curve.
     )
 
+    # Check if there is already excisting checkpoint and load it to continue
+    # training.
     if os.path.exists(checkpoint_name(args)):
         checkpoint = torch.load(
             checkpoint_name(args), weights_only=True, map_location=device
@@ -110,6 +117,7 @@ if __name__ == "__main__":
         train_loss_log = []
         validation_loss_log = []
 
+    # Switch to the training mode.
     model.train()
 
     for epoch in range(start_epoch, 500):
@@ -119,9 +127,11 @@ if __name__ == "__main__":
         batch_index = 0
         for batch in train_loader:
             batch = batch.to(device)
+            # Reset the optimizer.
             optimizer.zero_grad()
+            # Run the model.
             out = model(batch)
-
+            # Compute the loss and update the model.
             loss = potts_loss(out, batch.edge_index) + 0.02 * entropy_loss(out)
             loss.backward()
             optimizer.step()
@@ -132,6 +142,7 @@ if __name__ == "__main__":
 
         avg_loss = total_loss / len(train_loader)
 
+        # Switch to the evaluate mode and evaluate on the validation set.
         model.eval()
         num_correct, num_mistakes, val_loss = evaluate_dataset(
             wrap_evaluate_gnn(model, device), val_loader, args.num_classes
@@ -166,6 +177,7 @@ if __name__ == "__main__":
         }
         torch.save(checkpoint, checkpoint_name(args))
 
+        # Save the best checkpoint.
         if save_best:
             print("Saving best loss model.")
             torch.save(checkpoint, best_checkpoint_name(args))
