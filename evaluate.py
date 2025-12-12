@@ -119,7 +119,7 @@ def evaluate_dataset(eval_f, loader, num_classes):
     return total_perfect_graphs, total_conflicts, total_loss / len(loader)
 
 
-def evaluate_with_multistart(loader, model, device, num_starts=20):
+def evaluate_with_multistart(loader, model, device, num_classes, num_starts=20):
     total_perfect_graphs = 0
     total_graphs = 0
 
@@ -194,33 +194,14 @@ if __name__ == "__main__":
     num_correct, total_conflicts, val_loss = evaluate_dataset(
         wrap_evaluate_gnn(model, device), test_loader, args.num_classes
     )
-    evaluate_with_multistart(test_loader, model, device, num_starts=1)
-    evaluate_with_multistart(test_loader, model, device)
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("largest_first"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("random_sequential"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("smallest_last"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("independent_set"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("connected_sequential_bfs"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("connected_sequential_dfs"), test_loader, args.num_classes
-    # )
-
-    # num_correct, total_conflicts, val_loss = evaluate_dataset(
-    #     wrap_evaluate_networkx("saturation_largest_first"), test_loader, args.num_classes
-    # )
+    evaluate_with_multistart(test_loader, model, device, args.num_classes, num_starts=1)
+    evaluate_with_multistart(test_loader, model, device, args.num_classes, num_starts=5)
+    evaluate_with_multistart(
+        test_loader, model, device, args.num_classes, num_starts=25
+    )
+    evaluate_with_multistart(
+        test_loader, model, device, args.num_classes, num_starts=50
+    )
+    evaluate_with_multistart(
+        test_loader, model, device, args.num_classes, num_starts=100
+    )
