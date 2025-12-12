@@ -17,7 +17,7 @@ and install necessary dependencies:
 pip install -r requirements.txt
 ```
 
-and you should be good to go.
+and you should be good to go (might need to add ` -i https://pypi.org/simple` to the `pip install`).
 
 **Please note that at the moment of writing Python 3.14 is not supported, because some of the dependencies such as PyG haven't added support for it yet.**
 
@@ -43,7 +43,7 @@ train.py accepts the following parameters:
 Example of the command-line to evaluate the model:
 
 ```
-python evaluate.py --checkpoint=experiments/checkpoint_num_gcn_sweep/best_checkpoint_7_16_256.pth --num_of_gcns=7 --hidden_dim=256
+python evaluate.py --checkpoint=checkpoints/best_checkpoint_7_16_256.pth --num_of_gcns=7 --hidden_dim=256
 ```
 
 In addition to the evaluate.py accepts the following parameters:
