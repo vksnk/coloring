@@ -37,6 +37,8 @@ train.py accepts the following parameters:
 * num_classes = the size of the output vector (i.e. maximum number of colors to use).
 * draw_model = saves a graphical visualization of the model into file.
 
+Training is supported on CPU, MPS and GPU.
+
 **Each parameter has a reasonable default option, so providing them through command-line is optional.**
 
 <h2> Evaluation </h2>
@@ -57,5 +59,5 @@ In addition to the evaluate.py accepts the following parameters:
 You can visualize various information stored in the checkpoint file (such as training and validation losses, number of correct predictions, etc) using the following command:
 
 ```
-python plots.py -o losses.png experiments/checkpoint_num_gcn_sweep/best_checkpoint_7_16_256.pth
+python plots.py -o losses.png checkpoints/best_checkpoint_7_16_256.pth
 ```
